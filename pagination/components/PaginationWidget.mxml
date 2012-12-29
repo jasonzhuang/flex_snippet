@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox
+    xmlns:mx="http://www.adobe.com/2006/mxml"
+    xmlns:view="pagination.components.*"
+    horizontalGap="0"
+    initialize="init()"
+    horizontalScrollPolicy="off">
+    <mx:Metadata>
+        [Event(name="currentPageChanged", type="flash.events.Event")]
+    </mx:Metadata>
+    <mx:Script>
+        <![CDATA[
+            import mx.core.UIComponent;
+            /**
+            * Notice: in persetNum of getter and setter, mark as [Bindable] and invoke
+            * invalidateProperties(), use invalid-valid mechanism, otherwise it will not work
+            */
+            import mx.events.IndexChangedEvent;
+
+            private var pageInfo:PageInfo;
+            private var _itemsPerPage:int;
+            private var _totalItems:int;
+
+            private var persetNumChange:Boolean = false;
+            private var itemPerPageChange:Boolean = false;
+            private var pageLinkChange:Boolean = false;
+            private var currentPageChange:Boolean = false;
+
+            //specifies each pageSet contains how many pages
+            private var _persetNum:int = 5;
+            //specifies current page
+            private var _currentPage:int = 1;
+
+            //specifies the the minimum bounds for the currently selected page
+            private var _minBound:Number;
+
+            //Specifies the maximum bounds for the currently selected page
+            private var _maxBound:Number;
+
+            public function get minBound():Number {
+                return this._minBound;
+            }
+
+            public function get maxBound():Number {
+                return this._maxBound;
+            }
+
+            //hold page links
+            private var pageLinks:Array;
+
+            [Bindable("totalItemsChanged")]
+            public function set totalItems(totalItems:int):void {
+                this._totalItems = totalItems;
+                this.dispatchEvent(new Event("totalItemsChanged"));
+            }
+
+            public function get totalItems():int {
+                return this._totalItems;
+            }
+
+            [Bindable("currentPageChanged")]
+            public function set currentPage(value:int):void {
+                this._currentPage = value;
+                this.currentPageChange = true;
+                this.invalidateProperties();
+                this.invalidateDisplayList();
+                this.dispatchEvent(new Event("currentPageChanged"));
+            }
+
+            public function get currentPage():int {
+                return this._currentPage;
+            }
+
+            [Bindable("itemsPerPageChange")]
+            public function set itemsPerPage(itemsPerPage:int):void {
+                this._itemsPerPage = itemsPerPage;
+                this.dispatchEvent(new Event("itemsPerPageChange"));
+            }
+
+            public function get itemsPerPage():int {
+                return this._itemsPerPage;
+            }
+
+            [Bindable("persetNumChange")]
+            public function set persetNum(value:int):void {
+                this._persetNum = value;
+                this.dispatchEvent(new Event("persetNumChange"));
+            }
+
+            public function get persetNum():int {
+                return this._persetNum;
+            }
+
+            public function get totalPages():int {
+                return Math.ceil(this.totalItems/this.itemsPerPage);
+            }
+
+            private function init():void {
+                constructPageLink();
+            }
+
+            /**
+            * update particular page number and active/inactive
+            */
+            private function update():void {
+                var displayPages:Array = this.getPagesInRange();
+                var numPages:int = displayPages.length;
+
+                for (var i:int = 0; i < numPages; i++) {
+                    var pageNumber:int = displayPages[i];
+                    var pageLink:PageLinkButton = pageLinks[i];
+
+                    pageLink.data = pageNumber;
+                    pageLink.text = pageNumber.toString();
+
+                    var active:Boolean = pageNumber <= this.totalPages ? true : false;
+                    setPageLinkDisplay(pageLink, active);
+                }
+            }
+
+            private function setPageLinkDisplay(pageLinkButton:PageLinkButton, active:Boolean):void {
+                pageLinkButton.enabled = active;
+                pageLinkButton.mouseChildren = active;
+                pageLinkButton.mouseEnabled = active;
+                //TODO:set style
+            }
+
+            private function constructPageLink():void {
+                pageLinks = [];
+
+                var displayPages:Array = this.getPagesInRange();
+                var numPages:int = displayPages.length;
+
+                for (var i:int = 0; i< numPages; i++) {
+                    var pageNumber:int = displayPages[i];
+                    var pageLink:PageLinkButton = new PageLinkButton();
+                    //should use setActualSize, not width and height.
+                    pageLink.setActualSize(14, 14);
+                    pageLink.text = pageNumber.toString();
+                    pageLink.data = pageNumber;
+                    pageLink.addEventListener(MouseEvent.CLICK, handlePageSelected);
+                    this.pageHolder.addChild(pageLink);
+                    pageLinks.push(pageLink);
+                }
+            }
+
+            private function handlePageSelected(event:MouseEvent):void {
+                var pageLink:PageLinkButton = event.currentTarget as PageLinkButton;
+                this.currentPage = pageLink.data as int;
+
+            }
+
+            //show current records, such as "1001-2000", if last page records less than itemPerPage,
+            //the maxBound will be the totalItems
+            private function setBounds():void {
+                this._minBound = (this.currentPage - 1) * this.itemsPerPage;
+                this._maxBound = (_minBound + this.itemsPerPage - 1) > this.totalItems
+                        ? (this.totalItems - 1) : (_minBound + this.itemsPerPage - 1);
+            }
+
+            private function pageLinkEnable():void {
+                if (this.hasPreviouPage()) {
+                    this.firstPage.iconSource = AssetImporter.firstPageIcon;
+                    active(this.firstPage);
+                } else {
+                    this.firstPage.iconSource = AssetImporter.inactiveFirstPageIcon;
+                    inactive(this.firstPage);
+                }
+
+                if (this.hasNextPage()) {
+                    this.lastPage.iconSource = AssetImporter.lastPageIcon;
+                    active(this.lastPage);
+                } else {
+                    this.lastPage.iconSource = AssetImporter.inactiveLastPageIcon;
+                    inactive(this.lastPage);
+                }
+
+                if (this.hasPreviouSet()) {
+                    this.prevSet.iconSource = AssetImporter.previousSetIcon;
+                    active(this.prevSet);
+                } else {
+                    this.prevSet.iconSource = AssetImporter.inactivePreviousSetIcon;
+                    inactive(this.prevSet);
+                }
+
+                if (this.hasNextSet()) {
+                    active(this.nextSet);
+                    this.nextSet.iconSource = AssetImporter.nextSetIcon;
+
+                } else {
+                    this.nextSet.iconSource = AssetImporter.inactiveNextSetIcon;
+                    inactive(this.nextSet);
+                }
+            }
+
+            //Returns a Array on intergers indicating the page numbers in the current set
+            private function getPagesInRange():Array {
+                var visiblePages:Array = [];
+                var startIndex:int;
+                var endIndex:int;
+
+                var currentRange:int = (currentPage - 1)/this.persetNum;
+                startIndex = currentRange * persetNum + 1;
+                endIndex = startIndex + persetNum;
+
+                for (var i:int = startIndex; i< endIndex; i++) {
+                    visiblePages.push(i);
+                }
+                return visiblePages;
+            }
+
+            //navigate to the specular page
+            private function pageNavigate(event:MouseEvent):void {
+                switch(event.currentTarget) {//can't use event.target
+                    case firstPage:
+                        currentPage = 1;
+                        break;
+                    case prevSet:
+                        currentPage = getStartPage(this.currentPage);
+                        break;
+                    case nextSet:
+                        currentPage = getEndPage(this.currentPage);
+                        break;
+                    case lastPage:
+                        currentPage = this.totalPages;
+                        break;
+                    default:
+                        throw new IllegalOperationError("");
+                }
+            }
+
+            private function getStartPage(currentPage:int):int {
+                 var currentRange:int = (currentPage - 1)/this.persetNum;
+                 return currentRange * this.persetNum - this.persetNum + 1;
+            }
+
+            private function getEndPage(currentPage:int):int {
+                var currentRange:int = (currentPage - 1)/this.persetNum;
+                return currentRange * this.persetNum + this.persetNum + 1;
+            }
+
+            override protected function commitProperties():void {
+                super.commitProperties();
+
+                if (this.currentPageChange) {
+                    //NOTICE:update() should invoke in
+                    //update();
+                    pageLinkEnable();
+                    setBounds();
+                    pageInfo = PaginationHelper.constructPageInfo(this.currentPage, this.minBound,
+                            this.maxBound, this.totalPages);
+                    this.dispatchEvent(new PaginationEvent(pageInfo));
+                    this.currentPageChange = false;
+                }
+
+            }
+
+            override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void {
+                super.updateDisplayList(unscaledWidth, unscaledHeight);
+                update();
+            }
+
+            private function hasPreviouPage():Boolean {
+                return this.currentPage > 1;
+            }
+
+            private function hasNextPage():Boolean {
+                return this.currentPage < this.totalPages;
+            }
+
+            private function hasPreviouSet():Boolean {
+                return this.currentPage > this.persetNum;
+            }
+
+            private function hasNextSet():Boolean {
+                return this.currentPage < this.totalPages;
+            }
+
+            private function inactive(value:IconedLabel):void {
+                value.enabled = false;
+                value.mouseChildren = false;
+                value.mouseEnabled = false;
+            }
+
+            private function active(value:IconedLabel):void {
+                value.enabled = true;
+                value.mouseChildren = true;
+                value.mouseEnabled = true;
+            }
+
+        ]]>
+    </mx:Script>
+    <!--use images-->
+    <!--<mx:Button id="firstPage" label="firstPage" click="pageNavigate(event)"/>
+    <mx:Button id="prevSet" label="Previous" click="pageNavigate(event)"/>
+    <mx:HBox id="pageHolder" horizontalScrollPolicy="off"/>
+    <mx:Button id="nextSet" label="Next" click="pageNavigate(event)"/>
+    <mx:Button id="lastPage" label="lastPage" click="pageNavigate(event)"/>-->
+    <!--Notice:firstPage and lastPage text deliberately be ""-->
+    <view:IconedLabel id="firstPage" text="" click="pageNavigate(event)" mouseChildren="false"/>
+    <view:IconedLabel id="prevSet" text="PREVIOUS" click="pageNavigate(event)" mouseChildren="false"/>
+    <mx:HBox id="pageHolder" horizontalScrollPolicy="off"/>
+    <view:IconedLabel id="nextSet" text="NEXT"
+            leadingSpace="10"
+            click="pageNavigate(event)" mouseChildren="false"/>
+    <view:IconedLabel id="lastPage" text="" click="pageNavigate(event)" mouseChildren="false" leadingSpace="8"/>
+</mx:HBox>

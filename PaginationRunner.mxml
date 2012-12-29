@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application
+    xmlns:mx="http://www.adobe.com/2006/mxml"
+    xmlns:view = "pagination.components.*"
+    width="100%" height="100%"
+    creationComplete="init()">
+    <mx:Script>
+        <![CDATA[
+            import mx.collections.ArrayCollection;
+            import mx.controls.Alert;
+
+            import pagination.components.PaginationEvent;
+
+            [Bindable]
+            private var showData:ArrayCollection = new ArrayCollection();
+
+            [Bindable]
+            private var holderData:ArrayCollection = new ArrayCollection();
+
+            [Bindable]
+            private var info:String;
+
+            private function init():void {
+                this.addEventListener(PaginationEvent.PAGE_CHANGE, handlePageChange);
+                for (var i:Number = 0; i < 1160 ; i++) {
+                    holderData.addItem({
+                            ID: i,
+                            Name : "My Name is " + i,
+                            Age: i*2
+                        }
+                        )
+                }
+                pagination.currentPage = 1;
+                pagination.itemsPerPage = 100;
+                pagination.persetNum = 5;
+                pagination.totalItems = holderData.length;
+            }
+
+            private function handlePageChange(event:PaginationEvent):void {
+                info = "";
+                var startIndex:int = event.pageInfo.startIndex;
+                var endIndex:int = event.pageInfo.endIndex;
+                var tempArr:Array = [];
+                for (var i:int = startIndex; i <= endIndex ;i++) {
+                    tempArr.push(holderData[i]);
+                }
+                showData = new ArrayCollection(tempArr);
+                info = "total items: " + this.pagination.totalItems +
+                        ", you selected " + startIndex + " to " + endIndex;
+            }
+
+            private function gotoFirstPage():void {
+                pagination.currentPage = 1;
+            }
+
+            /**
+            * metadata event used for broadcasting event, and do some logic
+            * currentPageChanged=test()
+            */
+            private function test():void {
+                mx.controls.Alert.show("pagechanged");
+            }
+        ]]>
+    </mx:Script>
+    <mx:HBox width="100%" height="600">
+        <mx:VBox width="100%" height="100%">
+            <mx:DataGrid id="showList" dataProvider="{showData}" width="500" height="100%">
+                <mx:columns>
+                    <mx:DataGridColumn headerText="ID" dataField="ID" width="100"/>
+                    <mx:DataGridColumn headerText="Name" dataField="Name" width="100"/>
+                    <mx:DataGridColumn headerText="Age" dataField="Age" width="100"/>
+                </mx:columns>
+            </mx:DataGrid>
+            <view:PaginationWidget id="pagination"
+                    width="100%"/>
+        </mx:VBox>
+        <mx:Button label="Go to Page 1" click="gotoFirstPage()"/>
+        <mx:TextArea id="records" width="300"  height="100%" text="{this.info}"/>
+        <mx:LinkButton/>
+    </mx:HBox>
+</mx:Application>
